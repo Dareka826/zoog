@@ -61,7 +61,7 @@ fn main_impl() -> Result<(), ZoogError> {
         .arg(Arg::with_name("prioritize")
             .long("prioritize")
             .possible_values(&["album", "track"])
-            .default_value("album")
+            .default_value("track")
             .multiple(false)
             .help("Which tag to prioritize when both album and track gain exist"))
         .arg(Arg::with_name("input_files")
