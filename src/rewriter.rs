@@ -24,6 +24,12 @@ impl OperationMode {
 }
 
 #[derive(Clone, Copy, Debug)]
+pub enum PriorityMode {
+    PreferAlbum,
+    PreferTrack,
+}
+
+#[derive(Clone, Copy, Debug)]
 pub enum RewriteResult {
     Ready,
     NoR128Tags,
@@ -53,17 +59,19 @@ pub struct Rewriter<W: Write> {
     state: State,
     packet_queue: VecDeque<Packet>,
     mode: OperationMode,
+    priority: PriorityMode,
     verbose: bool,
 }
 
 impl<W: Write> Rewriter<W> {
-    pub fn new(mode: OperationMode, packet_writer: PacketWriter<W>, verbose: bool) -> Rewriter<W> {
+    pub fn new(mode: OperationMode, priority: PriorityMode, packet_writer: PacketWriter<W>, verbose: bool) -> Rewriter<W> {
         Rewriter {
             packet_writer,
             header_packet: None,
             state: State::AwaitingHeader,
             packet_queue: VecDeque::new(),
             mode,
+            priority,
             verbose,
         }
     }
@@ -88,7 +96,12 @@ impl<W: Write> Rewriter<W> {
                     };
 
                     let header_gain = opus_header.get_output_gain();
-                    let comment_gain = match comment_header.get_album_or_track_gain() {
+                    let comment_gain = match comment_header.get_album_or_track_gain(
+                        match self.priority {
+                            PriorityMode::PreferAlbum => false,
+                            PriorityMode::PreferTrack => true,
+                        }
+                    ) {
                         Err(e) => return Err(e),
                         Ok(None) => return Ok(RewriteResult::NoR128Tags),
                         Ok(Some(gain)) => gain,

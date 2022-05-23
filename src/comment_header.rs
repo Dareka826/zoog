@@ -94,8 +94,11 @@ impl<'a> CommentHeader<'a> {
         }
     }
 
-    pub fn get_album_or_track_gain(&self) -> Result<Option<Gain>, ZoogError> {
-        for tag in [TAG_ALBUM_GAIN, TAG_TRACK_GAIN].iter() {
+    pub fn get_album_or_track_gain(&self, prefer_track: bool) -> Result<Option<Gain>, ZoogError> {
+        let tags = if prefer_track { [TAG_TRACK_GAIN, TAG_ALBUM_GAIN] }
+                   else            { [TAG_ALBUM_GAIN, TAG_TRACK_GAIN] };
+
+        for tag in tags.iter() {
             if let Some(gain) = self.get_gain_from_tag(*tag)? {
                 return Ok(Some(gain));
             }

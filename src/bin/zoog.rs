@@ -5,7 +5,7 @@ use std::fs::File;
 use std::io::{BufReader, BufWriter, Write};
 use std::path::{Path, PathBuf};
 use zoog::constants::{R128_LUFS, REPLAY_GAIN_LUFS};
-use zoog::rewriter::{OperationMode, RewriteResult, Rewriter};
+use zoog::rewriter::{OperationMode, PriorityMode, RewriteResult, Rewriter};
 use zoog::ZoogError;
 
 pub const VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
@@ -58,6 +58,12 @@ fn main_impl() -> Result<(), ZoogError> {
             .default_value("rg")
             .multiple(false)
             .help("Normalizes to loudness used by ReplayGain (rg), EBU R 128 (r128) or original (none)"))
+        .arg(Arg::with_name("prioritize")
+            .long("prioritize")
+            .possible_values(&["album", "track"])
+            .default_value("album")
+            .multiple(false)
+            .help("Which tag to prioritize when both album and track gain exist"))
         .arg(Arg::with_name("input_files")
             .multiple(true)
             .required(true)
@@ -68,6 +74,12 @@ fn main_impl() -> Result<(), ZoogError> {
         "rg" => OperationMode::TargetLUFS(REPLAY_GAIN_LUFS),
         "r128" => OperationMode::TargetLUFS(R128_LUFS),
         "none" => OperationMode::ZeroOutputGain,
+        p => panic!("Unknown preset: {}", p),
+    };
+
+    let priority = match matches.value_of("prioritize").unwrap() {
+        "album" => PriorityMode::PreferAlbum,
+        "track" => PriorityMode::PreferTrack,
         p => panic!("Unknown preset: {}", p),
     };
 
@@ -94,7 +106,7 @@ fn main_impl() -> Result<(), ZoogError> {
             let mut ogg_reader = PacketReader::new(input_file);
             let mut output_file = BufWriter::new(&mut output_file);
             let ogg_writer = PacketWriter::new(&mut output_file);
-            let mut rewriter = Rewriter::new(mode, ogg_writer, true);
+            let mut rewriter = Rewriter::new(mode, priority, ogg_writer, true);
             loop {
                 match ogg_reader.read_packet() {
                     Err(e) => break Err(ZoogError::OggDecode(e)),
